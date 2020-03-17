@@ -1,0 +1,102 @@
+---
+title: "Practical machine learning - Final assignment"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Reading training and testing data
+```{r }
+##### Final Project
+library(caret)
+training <- read.csv("pml-training.csv")
+testing  <- read.csv("pml-testing.csv")
+```
+
+
+## removing NA values
+First I removed observations with all NA values,
+and then all the columns with all NA values
+```{r}
+# removing observations with all NA values
+training <- training[complete.cases(training), ]
+# removing NA columns
+sum(complete.cases(training))
+training<- training[,colSums(is.na(training))==0]
+testing <- testing [,colSums(is.na(testing))==0]
+nonNAs  <- intersect(names(training),names(testing))
+training <- training[,c(nonNAs,"classe")]
+testing  <- testing[,nonNAs]
+```
+
+## Excluding columns 1:7 
+because they are "UserName", etc. and are not related to movements
+```{r}
+# columns 1 to 7 are not of interest (user name, etc)
+training <- training[,c(8:ncol(training))]
+testing  <- testing [,c(8:ncol(testing)) ]
+```
+
+
+## Cross Validation: 70% training, 30% testing
+```{r}
+# 70% training, 30% testing
+inTrain <- createDataPartition(y = training$classe, p = 0.7, list = FALSE)
+training.train <- training[inTrain,]
+training.test  <- training[-inTrain,]
+```
+
+## Frequency of each classe value (A, B, C, D, E)
+```{r}
+plot(training.train$classe, xlab="Classe", ylab="Frequency", col="azure")
+```
+
+## Two methods are selected: Decision trees and Random Forests.
+<br/>
+## Model1: decision trees:
+```{r}
+# Tree
+modFitTR <- train(classe~., data=training.train, method="rpart", na.action = na.exclude)
+print(modFitTR$finalModel)
+library(rattle)
+fancyRpartPlot(modFitTR$finalModel)
+pred <- predict(modFitTR,training.test)
+pred
+```
+based on these prediction results, the accuracy of decision tree method for this data is 0.41.
+Now lets take a look at the confusion matrix:
+```{r}
+confusionMatrix(training.test$classe,pred)
+```
+and we can predict and classify the test data using this model:
+```{r}
+pred3 <- predict(modFitTR,testing)
+pred3
+```
+<br/><br/>
+## Model2: Random Forest:
+```{r}
+# Random Forest
+library(randomForest)
+modFitRF <- train(classe~., data=training.train, method="rf", na.action = na.exclude)
+pred2 <- predict(modFitRF, training.test)
+```
+lets take a look at the confusion matrix:
+```{r}
+confusionMatrix(training.test$classe, pred2)
+```
+and we can see which variables have had a higher importance in predictions:
+```{r}
+varImp(modFitRF)
+```
+<br/>
+then we can predict the class of testing data:
+```{r}
+pred4 <- predict(modFitRF, testing)
+pred4
+```
+## Conclusion: <br/>
+based on the accuracy of the random forest model (0.71) and the decision tree model (0.41) and <br/> 
+their confusion matrices, random forest works better for analysing this data.
